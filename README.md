@@ -1,4 +1,4 @@
-**Note:** The link will generate an error when you enter it in chrome if you are signed into multiple chrome/gmail accounts. The easiest workaround it using a Chrome Incognito Tab or Safari Private Tab\
+**Note:** The link will generate an error when you enter it in chrome if you are signed into multiple chrome/gmail accounts. The easiest workaround it using a Chrome Incognito Tab or Safari Private Tab
 
 
 **1. Create the Google Sheet**\
