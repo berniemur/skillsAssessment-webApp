@@ -1,3 +1,6 @@
+**Note:** The link will generate an error when you enter it in chrome if you are signed into multiple chrome/gmail accounts. The easiest workaround it using a Chrome Incognito Tab or Safari Private Tab\\
+
+
 **1. Create the Google Sheet**\
 Sign in with the account that owns your Google Site and create a new Google Sheet, for example "Draft Scores 2026". Go to Extensions > Apps Script. Replace the starter code with Code.gs. Click + > HTML, name the file exactly Index, and paste in Index.html. Change ACCESS_CODE at the top of Code.gs to your own code, then save.\
 \
