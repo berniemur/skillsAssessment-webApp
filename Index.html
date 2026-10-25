@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title><?= appTitle ?></title>
+<style>
+  :root {
+    --bg: #f5f6f8; --card: #fff; --ink: #1c2230; --muted: #6b7280; --line: #e3e6eb;
+    --accent: #1f5fbf; --accent-ink: #fff; --ok: #1e8e4e; --warn: #b45309; --bad: #c0392b;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.35 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; }
+  button { font: inherit; cursor: pointer; }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 1.25rem; margin: 4px 0 16px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .muted { color: var(--muted); }
+  .hidden { display: none !important; }
+  input[type=text], input[type=search], input[type=password] {
+    width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .btn { padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); background: #fff; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .err { color: var(--bad); margin-top: 8px; min-height: 1.2em; }
+
+  /* Assessor picker */
+  .names { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .names button { padding: 18px 12px; border-radius: 12px; border: 1px solid var(--line); background: #fff; font-weight: 600; }
+  .names button:active { background: #eef3fb; }
+
+  /* Scoring header */
+  .top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 12px 16px 8px; margin: -16px -16px 8px;
+    border-bottom: 1px solid var(--line); }
+  .row1 { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+  .who { font-weight: 700; }
+  .link { background: none; border: none; color: var(--accent); padding: 4px; text-decoration: underline; }
+  .status { font-size: .85rem; padding: 3px 8px; border-radius: 999px; background: #e7f5ec; color: var(--ok); white-space: nowrap; }
+  .status.saving { background: #eef3fb; color: var(--accent); }
+  .status.offline { background: #fdf0e1; color: var(--warn); }
+  .progress { height: 6px; background: var(--line); border-radius: 3px; margin: 8px 0; overflow: hidden; }
+  .progress > div { height: 100%; background: var(--ok); width: 0; transition: width .2s; }
+  .tools { display: flex; gap: 8px; margin-top: 6px; }
+  .tools input { flex: 1; }
+  .chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; }
+  .chip { flex: 0 0 auto; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); background: #fff; font-size: .9rem; }
+  .chip.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+
+  /* Player list */
+  .list { display: flex; flex-direction: column; gap: 8px; }
+  .p { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .p.done { border-color: #bfe3cc; }
+  .p-head { display: flex; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+  .num { font-weight: 800; font-size: 1.15rem; min-width: 3ch; }
+  .pname { flex: 1; }
+  .div { font-size: .8rem; color: var(--muted); }
+  .clear { background: none; border: none; color: var(--muted); font-size: .85rem; padding: 2px 4px; }
+  .scores { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+  .s { padding: 12px 0; border-radius: 10px; border: 1px solid var(--line); background: #fafbfc; font-weight: 700; font-size: 1.1rem; }
+  .s.on { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .empty { text-align: center; padding: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- Loading -->
+  <div id="vLoading" class="card muted">Loading…</div>
+
+  <!-- Access code -->
+  <div id="vCode" class="card hidden">
+    <h1 id="t1"></h1>
+    <label for="code">Enter the access code</label>
+    <input id="code" type="password" autocomplete="off" style="margin:8px 0 12px">
+    <button id="codeGo" class="btn primary">Continue</button>
+    <div id="codeErr" class="err"></div>
+  </div>
+
+  <!-- Pick assessor -->
+  <div id="vWho" class="hidden">
+    <h1 id="t2"></h1>
+    <p class="muted">Who's scoring on this device?</p>
+    <div id="names" class="names"></div>
+    <div id="whoErr" class="err"></div>
+  </div>
+
+  <!-- Scoring -->
+  <div id="vScore" class="hidden">
+    <div class="top">
+      <div class="row1">
+        <div><span class="who" id="who"></span> <button class="link" id="switch">switch</button></div>
+        <span class="status" id="status">Saved</span>
+      </div>
+      <div class="progress"><div id="bar"></div></div>
+      <div class="row1"><span class="muted" id="count"></span>
+        <label class="muted" style="font-size:.9rem"><input type="checkbox" id="onlyOpen"> Unscored only</label></div>
+      <div class="tools"><input id="q" type="search" placeholder="Find player # or name"></div>
+      <div class="chips" id="chips"></div>
+    </div>
+    <div id="list" class="list"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var S = {
+    code: '', assessor: '', players: [], assessors: [],
+    scores: {},      // id -> score (what this assessor has entered)
+    pending: {},     // id -> score waiting to be sent
+    inflight: false, division: '', query: '', onlyOpen: false
+  };
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---- small storage helpers (storage may be blocked; app still works without it)
+  function load(k) { try { return JSON.parse(localStorage.getItem('bbscore.' + k)); } catch (e) { return null; } }
+  function save(k, v) { try { localStorage.setItem('bbscore.' + k, JSON.stringify(v)); } catch (e) {} }
+
+  function show(view) {
+    ['vLoading', 'vCode', 'vWho', 'vScore'].forEach(function (v) { $(v).classList.toggle('hidden', v !== view); });
+  }
+
+  function call(fn, args, ok, fail) {
+    var r = google.script.run.withSuccessHandler(ok).withFailureHandler(fail || function (e) { alertErr(e); });
+    r[fn].apply(r, args);
+  }
+  function msg(e) { return (e && e.message) ? e.message : String(e); }
+  function alertErr(e) { setStatus('offline', 'Error: ' + msg(e)); }
+
+  // ---------- Start ----------
+  function start() {
+    S.code = load('code') || '';
+    call('getSetup', [S.code], gotSetup, function (e) {
+      if (msg(e).indexOf('ACCESS_CODE') > -1) { show('vCode'); $('code').focus(); }
+      else { $('vLoading').textContent = 'Could not load: ' + msg(e); }
+    });
+  }
+
+  function gotSetup(d) {
+    save('code', S.code);
+    S.players = d.players; S.assessors = d.assessors;
+    document.title = d.title; $('t1').textContent = d.title; $('t2').textContent = d.title;
+    var remembered = load('assessor');
+    if (remembered && S.assessors.indexOf(remembered) > -1) return pickAssessor(remembered);
+    renderNames();
+    show('vWho');
+  }
+
+  $('codeGo').onclick = function () {
+    S.code = $('code').value.trim();
+    $('codeErr').textContent = '';
+    call('getSetup', [S.code], gotSetup, function (e) {
+      $('codeErr').textContent = msg(e).indexOf('ACCESS_CODE') > -1 ? 'That code isn\'t right.' : msg(e);
+    });
+  };
+  $('code').onkeydown = function (e) { if (e.key === 'Enter') $('codeGo').click(); };
+  $('t1').textContent = document.title;
+
+  // ---------- Assessor ----------
+  function renderNames() {
+    var box = $('names'); box.innerHTML = '';
+    if (!S.assessors.length) { $('whoErr').textContent = 'No assessors yet. Add names to the "Assessors" tab of the sheet.'; return; }
+    S.assessors.forEach(function (n) {
+      var b = document.createElement('button'); b.textContent = n;
+      b.onclick = function () { pickAssessor(n); };
+      box.appendChild(b);
+    });
+  }
+
+  function pickAssessor(name) {
+    S.assessor = name; save('assessor', name);
+    S.pending = load('pending.' + name) || {};
+    $('who').textContent = name;
+    $('vLoading').textContent = 'Loading your scores…'; show('vLoading');
+    call('getMyScores', [S.code, name], function (mine) {
+      S.scores = mine || {};
+      for (var id in S.pending) S.scores[id] = S.pending[id]; // unsent taps win
+      renderChips(); render(); show('vScore');
+      flush();
+    }, function (e) {
+      // Offline: still allow scoring from what this phone knows
+      S.scores = Object.assign({}, S.pending);
+      renderChips(); render(); show('vScore');
+      setStatus('offline', 'Offline – scores will send later');
+    });
+  }
+
+  // Unsent scores stay on this phone under the assessor's name and send next time they sign in.
+  $('switch').onclick = function () {
+    save('assessor', null); renderNames(); show('vWho');
+  };
+
+  // ---------- Filters ----------
+  function renderChips() {
+    var divs = [];
+    S.players.forEach(function (p) { if (p.division && divs.indexOf(p.division) < 0) divs.push(p.division); });
+    var box = $('chips'); box.innerHTML = '';
+    box.classList.toggle('hidden', divs.length < 2);
+    if (divs.indexOf(S.division) < 0) S.division = '';
+    [''].concat(divs).forEach(function (d) {
+      var c = document.createElement('button');
+      c.className = 'chip' + (d === S.division ? ' on' : '');
+      c.textContent = d || 'All';
+      c.onclick = function () { S.division = d; renderChips(); render(); };
+      box.appendChild(c);
+    });
+  }
+  $('q').oninput = function () { S.query = this.value.trim().toLowerCase(); render(); };
+  $('onlyOpen').onchange = function () { S.onlyOpen = this.checked; render(); };
+
+  // ---------- List ----------
+  function visiblePlayers() {
+    var q = S.query;
+    return S.players.filter(function (p) {
+      if (S.division && p.division !== S.division) return false;
+      if (S.onlyOpen && S.scores[p.id]) return false;
+      if (!q) return true;
+      return p.id.toLowerCase().indexOf(q) === 0 || (p.name && p.name.toLowerCase().indexOf(q) > -1);
+    });
+  }
+
+  function render() {
+    var list = $('list'), html = [];
+    var vis = visiblePlayers();
+    vis.forEach(function (p) {
+      var sc = S.scores[p.id] || 0;
+      var btns = '';
+      for (var i = 1; i <= 5; i++) {
+        btns += '<button class="s' + (sc === i ? ' on' : '') + '" data-id="' + esc(p.id) + '" data-s="' + i + '">' + i + '</button>';
+      }
+      html.push('<div class="p' + (sc ? ' done' : '') + '" id="p_' + esc(p.id) + '">' +
+        '<div class="p-head"><span class="num">#' + esc(p.id) + '</span>' +
+        '<span class="pname">' + esc(p.name || '') + (p.division && !S.division ? ' <span class="div">' + esc(p.division) + '</span>' : '') + '</span>' +
+        (sc ? '<button class="clear" data-id="' + esc(p.id) + '" data-s="0">clear</button>' : '') +
+        '</div><div class="scores">' + btns + '</div></div>');
+    });
+    list.innerHTML = html.length ? html.join('') :
+      '<div class="card empty muted">' + (S.players.length ? 'No players match.' : 'No players yet. Add them to the "Roster" tab of the sheet.') + '</div>';
+    updateCount();
+  }
+
+  function updateCount() {
+    var pool = S.players.filter(function (p) { return !S.division || p.division === S.division; });
+    var done = pool.filter(function (p) { return S.scores[p.id]; }).length;
+    $('count').textContent = done + ' of ' + pool.length + ' scored';
+    $('bar').style.width = (pool.length ? (100 * done / pool.length) : 0) + '%';
+  }
+
+  $('list').addEventListener('click', function (e) {
+    var b = e.target.closest('button[data-id]'); if (!b) return;
+    var id = b.getAttribute('data-id'), s = Number(b.getAttribute('data-s'));
+    setScore(id, s);
+  });
+
+  function setScore(id, s) {
+    if (s) S.scores[id] = s; else delete S.scores[id];
+    S.pending[id] = s;
+    save('pending.' + S.assessor, S.pending);
+    // Update just this card (keeps scroll position steady)
+    var card = $('p_' + id);
+    if (card) {
+      if (S.onlyOpen && s) { card.style.opacity = '.4'; setTimeout(render, 600); }
+      else {
+        card.classList.toggle('done', !!s);
+        card.querySelectorAll('.s').forEach(function (x) { x.classList.toggle('on', Number(x.getAttribute('data-s')) === s); });
+        var head = card.querySelector('.p-head'), clr = head.querySelector('.clear');
+        if (s && !clr) { clr = document.createElement('button'); clr.className = 'clear'; clr.setAttribute('data-id', id); clr.setAttribute('data-s', '0'); clr.textContent = 'clear'; head.appendChild(clr); }
+        if (!s && clr) clr.remove();
+      }
+    }
+    updateCount();
+    flush();
+  }
+
+  // ---------- Sync ----------
+  var retryTimer = null;
+  function setStatus(kind, text) { var el = $('status'); el.className = 'status ' + (kind || ''); el.textContent = text; }
+
+  function flush() {
+    var ids = Object.keys(S.pending);
+    if (!ids.length) { setStatus('', 'All saved ✓'); return; }
+    if (S.inflight) return;
+    S.inflight = true;
+    var batch = ids.map(function (id) { return { id: id, score: S.pending[id] }; });
+    var who = S.assessor;
+    setStatus('saving', 'Saving ' + ids.length + '…');
+    call('saveScores', [S.code, who, batch], function () {
+      S.inflight = false;
+      // Remove only entries that didn't change while we were saving
+      var p = (who === S.assessor) ? S.pending : (load('pending.' + who) || {});
+      batch.forEach(function (e) { if (p[e.id] === e.score) delete p[e.id]; });
+      save('pending.' + who, p);
+      flush();
+    }, function (e) {
+      S.inflight = false;
+      var n = Object.keys(S.pending).length;
+      setStatus('offline', n + ' waiting – will retry');
+      clearTimeout(retryTimer);
+      retryTimer = setTimeout(flush, 5000);
+    });
+  }
+  window.addEventListener('online', flush);
+
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+
+  start();
+})();
+</script>
+</body>
+</html>
